@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 )
 
 func main() {
@@ -16,8 +18,14 @@ func main() {
 			fmt.Println(err)
 		}
 
-		if command == "exit 0" {
+		if c := strings.Split(command, " "); c[0] == "exit" {
 			fmt.Println(command)
+			code, err := strconv.ParseInt(c[1])
+			if err != nil {
+				fmt.Println(err)
+			}
+			os.Exit(int(code))
+
 			running = false
 		}
 
