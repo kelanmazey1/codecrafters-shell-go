@@ -12,15 +12,14 @@ func main() {
 
 	running := true
 	for running {
-		fmt.Fprintln(os.Stdout, "$ ")
+		fmt.Fprint(os.Stdout, "$ ")
 		command, err := bufio.NewReader(os.Stdin).ReadString('\n')
 		if err != nil {
 			fmt.Println(err)
 		}
 
 		if c := strings.Split(command, " "); c[0] == "exit" {
-			fmt.Println(command)
-			code, err := strconv.ParseInt(c[1])
+			code, err := strconv.ParseInt(strings.Replace(c[1], "\n", "", -1), 0, 0)
 			if err != nil {
 				fmt.Println(err)
 			}
