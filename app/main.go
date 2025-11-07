@@ -4,31 +4,36 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
+
+	"github.com/codecrafters-io/shell-starter-go/src/commands"
 )
 
 func main() {
 
-	running := true
-	for running {
+	for {
 		fmt.Fprint(os.Stdout, "$ ")
 		command, err := bufio.NewReader(os.Stdin).ReadString('\n')
+		// Strip new line from args
+		command = strings.TrimRight(command, "\n")
+
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
 
-		if c := strings.Split(command, " "); c[0] == "exit" {
-			code, err := strconv.ParseInt(strings.Replace(c[1], "\n", "", -1), 0, 0)
-			if err != nil {
-				fmt.Println(err)
-			}
-			os.Exit(int(code))
+		input := strings.Split(command, " ")
 
-			running = false
+		cmd, err := commands.LookupCommand(input[0])
+
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			continue
 		}
 
-		fmt.Println(command[:len(command)-1] + ": command not found")
+		h, _ := commands.GetHandler(cmd) // The error is causing tests not too pass :(
+
+		h(input[1:]) // Run handler with rest of input after cmd
 
 	}
 
