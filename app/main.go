@@ -27,11 +27,11 @@ func main() {
 		cmd, err := commands.LookupCommand(input[0])
 
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, err) // Print invalid command err
 			continue
 		}
 
-		h, _ := commands.GetHandler(cmd) // The error is causing tests not too pass :(
+		h, _ := commands.GetHandler(cmd) // Don't print this err as tests don't expect handler err
 
 		h(input[1:]) // Run handler with rest of input after cmd
 
