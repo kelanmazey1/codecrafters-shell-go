@@ -13,11 +13,13 @@ type CommandType string
 const (
 	EXIT = "EXIT"
 	ECHO = "ECHO"
+	TYPE = "TYPE"
 )
 
 var commandMap = map[string]CommandType{
 	"exit": EXIT,
 	"echo": ECHO,
+	"type": TYPE,
 }
 
 func LookupCommand(c string) (CommandType, error) {
@@ -51,12 +53,30 @@ func handleExit(args []string) error {
 	return nil
 }
 
+func handleType(args []string) error {
+	if len(args) > 1 {
+		return errors.New("'type' command only takes one argument")
+	}
+	cmdStr := args[0]
+	_, err := LookupCommand(cmdStr)
+
+	if err != nil {
+		return fmt.Errorf("%s: not found", cmdStr)
+	}
+
+	fmt.Printf("%s is a shell builtin\n", cmdStr)
+	return nil
+
+}
+
 func GetHandler(c CommandType) (handlerFunc, error) {
 	switch c {
 	case EXIT:
 		return handleExit, nil
 	case ECHO:
 		return handleEcho, nil
+	case TYPE:
+		return handleType, nil
 	default:
 		return nil, fmt.Errorf("no handler for command '%v'", c)
 	}

@@ -27,13 +27,16 @@ func main() {
 		cmd, err := commands.LookupCommand(input[0])
 
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err) // Print invalid command err
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 
 		h, _ := commands.GetHandler(cmd) // Don't print this err as tests don't expect handler err
 
-		h(input[1:]) // Run handler with rest of input after cmd
+		err = h(input[1:]) // Run handler with rest of input after cmd
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 
 	}
 
