@@ -142,9 +142,16 @@ func handleCd(b BuiltIn) error {
 	if len(args) > 1 {
 		return &TooManyArgsErr{Cmd: "exit", Wanted: 1, Given: len(args)}
 	}
-	err := os.Chdir(args[0])
+
+	dir := args[0]
+
+	if dir == "~" {
+		dir = os.Getenv("HOME")
+	}
+
+	err := os.Chdir(dir)
 	if err != nil {
-		return fmt.Errorf("cd: %s: No such file or directory", args[0])
+		return fmt.Errorf("cd: %s: No such file or directory", dir)
 	}
 
 	return nil

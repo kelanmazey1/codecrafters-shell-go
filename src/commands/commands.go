@@ -15,7 +15,7 @@ type Command interface {
 	Exec() error
 }
 
-func CommandFactory(input string) (Command, error) {
+func New(input string) (Command, error) {
 	inputSplit := strings.Split(strings.TrimRight(input, "\n"), " ")
 	bi := builtins.IsBuiltIn(inputSplit[0]) // Don't like repeating this in NewBuiltIn
 

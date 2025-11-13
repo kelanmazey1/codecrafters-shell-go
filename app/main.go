@@ -18,7 +18,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		cmd, err := commands.CommandFactory(input)
+		cmd, err := commands.New(input)
 
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
