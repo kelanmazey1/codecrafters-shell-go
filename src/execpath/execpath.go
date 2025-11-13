@@ -14,10 +14,6 @@ func LocateExecutablePath(c string) (string, error) {
 	var commandPath string
 	dirs := strings.Split(os.Getenv("PATH"), string(os.PathListSeparator))
 
-	if c == "my_exe" {
-		fmt.Println(dirs)
-		fmt.Println(os.Getenv("PATH"))
-	}
 	for _, dir := range dirs {
 		err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 
@@ -29,18 +25,20 @@ func LocateExecutablePath(c string) (string, error) {
 			if err != nil {
 				return err
 			}
+
 			// We only want files
 			if d.IsDir() {
 				return nil
 			}
 
 			if d.Name() == c {
-				if c == "my_exe" {
-					fmt.Println(dir)
-					fmt.Println(os.Getenv("PATH"))
-					fmt.Println(path)
+
+				info, err := os.Stat(path)
+
+				// Checks file permissions
+				if m := info.Mode(); m&0111 == 0 {
+					return fs.ErrPermission
 				}
-				_, err := os.Stat(path) // Checks for permissions
 
 				if err != nil {
 					return err
@@ -66,7 +64,7 @@ func LocateExecutablePath(c string) (string, error) {
 	}
 	if commandPath == "" {
 		// commandPath is never set ie. c executable doesn't exist
-		return "", fmt.Errorf("executable for '%s' not found in PATH", c)
+		return "", fmt.Errorf("%s: command not found", c)
 	}
 
 	return commandPath, nil
