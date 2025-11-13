@@ -17,6 +17,7 @@ const (
 	ECHO = "ECHO"
 	TYPE = "TYPE"
 	PWD  = "PWD"
+	CD   = "CD"
 )
 
 // TODO: Not sure if I should just be returning the const or making separate structs??
@@ -25,6 +26,7 @@ var builtinCommandMap = map[string]BuiltInType{
 	"echo": ECHO,
 	"type": TYPE,
 	"pwd":  PWD,
+	"cd":   CD,
 }
 
 type BuiltIn struct {
@@ -93,7 +95,7 @@ func handleEcho(b BuiltIn) error {
 func handleExit(b BuiltIn) error {
 	args := b.GetArgs()
 	if len(args) > 1 {
-		return errors.New("'exit' command only takes one argument")
+		return &TooManyArgsErr{Cmd: "exit", Wanted: 1, Given: len(args)}
 	}
 
 	code, err := strconv.Atoi(args[0])
@@ -109,7 +111,7 @@ func handleType(b BuiltIn) error {
 	args := b.GetArgs()
 	// Only accept 1 arg
 	if len(args) > 1 {
-		return errors.New("'type' command only takes one argument")
+		return &TooManyArgsErr{Cmd: "exit", Wanted: 1, Given: len(args)}
 	}
 
 	if IsBuiltIn(args[0]) {
@@ -135,6 +137,19 @@ func handePwd(b BuiltIn) error {
 	return nil
 }
 
+func handleCd(b BuiltIn) error {
+	args := b.GetArgs()
+	if len(args) > 1 {
+		return &TooManyArgsErr{Cmd: "exit", Wanted: 1, Given: len(args)}
+	}
+	err := os.Chdir(args[0])
+	if err != nil {
+		return fmt.Errorf("cd: %s: No such file or directory", args[0])
+	}
+
+	return nil
+}
+
 func getHandler(c BuiltInType) (handlerFunc, error) {
 	switch c {
 	case EXIT:
@@ -145,6 +160,8 @@ func getHandler(c BuiltInType) (handlerFunc, error) {
 		return handleType, nil
 	case PWD:
 		return handePwd, nil
+	case CD:
+		return handleCd, nil
 	default:
 		return nil, fmt.Errorf("no handler for command '%v'", c)
 	}
