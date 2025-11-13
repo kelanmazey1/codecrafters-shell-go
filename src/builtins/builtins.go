@@ -16,6 +16,7 @@ const (
 	EXIT = "EXIT"
 	ECHO = "ECHO"
 	TYPE = "TYPE"
+	PWD  = "PWD"
 )
 
 // TODO: Not sure if I should just be returning the const or making separate structs??
@@ -23,6 +24,7 @@ var builtinCommandMap = map[string]BuiltInType{
 	"exit": EXIT,
 	"echo": ECHO,
 	"type": TYPE,
+	"pwd":  PWD,
 }
 
 type BuiltIn struct {
@@ -124,6 +126,15 @@ func handleType(b BuiltIn) error {
 
 }
 
+func handePwd(b BuiltIn) error {
+	d, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	fmt.Println(d)
+	return nil
+}
+
 func getHandler(c BuiltInType) (handlerFunc, error) {
 	switch c {
 	case EXIT:
@@ -132,6 +143,8 @@ func getHandler(c BuiltInType) (handlerFunc, error) {
 		return handleEcho, nil
 	case TYPE:
 		return handleType, nil
+	case PWD:
+		return handePwd, nil
 	default:
 		return nil, fmt.Errorf("no handler for command '%v'", c)
 	}
