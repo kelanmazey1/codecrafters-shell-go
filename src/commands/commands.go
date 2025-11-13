@@ -88,10 +88,14 @@ func lookupBuiltIn(c string) BuiltInType {
 
 func (b BuiltIn) Exec() error {
 	h, err := getHandler(b.Type)
+
 	if err != nil {
 		return err
 	}
-	h(b)
+	err = h(b)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -133,11 +137,11 @@ func handleType(c Command) error {
 	c2, err := CommandFactory(args[0])
 
 	if err != nil {
-		return fmt.Errorf("error searching for command '%v'", args[0])
+		return err
 	}
 
 	if e, ok := c2.(Executable); ok {
-		fmt.Printf("%s is %s\n", e.Literal, e.Path)
+		fmt.Printf("%s is %s\n", e.GetLiteral(), e.Path)
 		return nil
 	}
 

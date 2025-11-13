@@ -9,19 +9,23 @@ import (
 	"strings"
 )
 
-type Executable struct {
-	Path string
-	Info fs.FileInfo
-}
-
-// Find executable for c
 // TODO: Think about whether this should be a commands.Command
 func LocateExecutablePath(c string) (string, error) {
-	dirs := GetPathDirs()
 	var commandPath string
+	dirs := strings.Split(os.Getenv("PATH"), string(os.PathListSeparator))
 
+	if c == "my_exe" {
+		fmt.Println(dirs)
+		fmt.Println(os.Getenv("PATH"))
+	}
 	for _, dir := range dirs {
 		err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+
+			// If directory doesn't exist then continue
+			if errors.Is(err, fs.ErrNotExist) {
+				return filepath.SkipDir
+			}
+
 			if err != nil {
 				return err
 			}
@@ -31,6 +35,11 @@ func LocateExecutablePath(c string) (string, error) {
 			}
 
 			if d.Name() == c {
+				if c == "my_exe" {
+					fmt.Println(dir)
+					fmt.Println(os.Getenv("PATH"))
+					fmt.Println(path)
+				}
 				_, err := os.Stat(path) // Checks for permissions
 
 				if err != nil {
@@ -49,6 +58,7 @@ func LocateExecutablePath(c string) (string, error) {
 		if errors.Is(err, fs.ErrPermission) {
 			continue
 		}
+
 		// Return any error when walking dirs
 		if err != nil && err != filepath.SkipAll {
 			return "", err
@@ -60,9 +70,4 @@ func LocateExecutablePath(c string) (string, error) {
 	}
 
 	return commandPath, nil
-}
-
-func GetPathDirs() []string {
-	path := os.Getenv("PATH")
-	return strings.Split(path, string(os.PathListSeparator))
 }
