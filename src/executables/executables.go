@@ -2,8 +2,8 @@ package executables
 
 import (
 	"fmt"
-
-	"github.com/codecrafters-io/shell-starter-go/src/execpath"
+	"os"
+	"os/exec"
 )
 
 type Executable struct {
@@ -21,7 +21,7 @@ func NewExecutable(inputSplit []string) (Executable, error) {
 		e.Args = inputSplit[1:]
 	}
 
-	ep, err := execpath.LocateExecutablePath(e.Literal)
+	ep, err := LocateExecutablePath(e.Literal)
 
 	if err != nil {
 		return Executable{}, err
@@ -31,7 +31,6 @@ func NewExecutable(inputSplit []string) (Executable, error) {
 }
 
 func (e Executable) GetArgs() []string {
-
 	return e.Args
 }
 
@@ -43,7 +42,16 @@ func (e Executable) GetLiteral() string {
 	return e.Literal
 }
 
+// Runs os.Exec(e.Literal) with e.Args
 func (e Executable) Exec() error {
-	fmt.Println("I'm an exec")
+	cmd := exec.Command(e.Literal, e.GetArgs()...)
+	out, err := cmd.Output()
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprint(os.Stdout, string(out))
+
 	return nil
 }

@@ -1,4 +1,4 @@
-package execpath
+package executables
 
 import (
 	"errors"
