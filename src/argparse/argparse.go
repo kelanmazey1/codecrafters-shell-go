@@ -6,16 +6,16 @@ type ParserState int
 
 const (
 	_ = iota
-	Reading
-	SingleQuotesOpen
-	DoubleQuotesOpen
-	Stopped
+	reading
+	singleQuotesOpen
+	doubleQuotesOpen
+	stopped
 )
 
 type ArgParser struct {
 	state        ParserState
 	Args         []string // confirmed parsed args
-	currArg      string   // current arg being constructed
+	charBuff     string   // current arg being constructed
 	input        string
 	position     int  // index of current char in ch
 	readPosition int  // index of next char to be read
@@ -25,7 +25,7 @@ type ArgParser struct {
 func New(i string) *ArgParser {
 	ap := &ArgParser{
 		input: i,
-		state: Reading,
+		state: reading,
 	}
 	ap.readChar()
 	return ap
@@ -54,43 +54,52 @@ func (ap *ArgParser) peekChar() byte {
 // Output separate arguments from single string input
 // TODO: Probably a refactor here with just having 'Qouting' and then 'Escaped' states instead of single doulbe
 func (ap *ArgParser) Parse() {
-	for ap.state != Stopped {
+	for ap.state != stopped {
 		switch ap.ch {
+		case '\\':
+			if ap.anyQuotesOpen() {
+				ap.charBuff += string(ap.ch)
+			} else if ap.state == doubleQuotesOpen && inSpecialChars(ap.peekChar()) {
+				ap.readChar() // Ignore backslash
+			} else {
+				ap.readChar()
+				ap.charBuff += string(ap.ch)
+			}
 		case '"':
 			if ap.peekChar() == '"' {
 				ap.readChar()
-			} else if ap.state == DoubleQuotesOpen {
-				ap.commitCurrArg()
-				ap.state = Reading
+			} else if ap.state == doubleQuotesOpen {
+				ap.commitCharBuff()
+				ap.state = reading
 			} else {
-				ap.state = DoubleQuotesOpen
+				ap.state = doubleQuotesOpen
 			}
 		case '\'':
-			if ap.state == DoubleQuotesOpen {
-				ap.currArg += string(ap.ch)
+			if ap.state == doubleQuotesOpen {
+				ap.charBuff += string(ap.ch)
 			} else if ap.peekChar() == '\'' {
 				ap.readChar() // Move through empty quotes, next quote is skpped after switch
-			} else if ap.state == SingleQuotesOpen {
-				ap.commitCurrArg()
-				ap.state = Reading
+			} else if ap.state == singleQuotesOpen {
+				ap.commitCharBuff()
+				ap.state = reading
 			} else {
-				ap.state = SingleQuotesOpen
+				ap.state = singleQuotesOpen
 			}
 		case ' ':
-			if ap.state == SingleQuotesOpen || ap.state == DoubleQuotesOpen {
-				ap.currArg += string(ap.ch)
-			} else if ap.currArg == "" || ap.peekChar() == ' ' {
+			if ap.anyQuotesOpen() {
+				ap.charBuff += string(ap.ch)
+			} else if ap.charBuff == "" || ap.peekChar() == ' ' {
 				ap.skipWhiteSpace() // Unless we are parsing a literal we only take one space
 			} else {
-				ap.commitCurrArg()
+				ap.commitCharBuff()
 			}
 		case '\n':
-			ap.state = Stopped
-			if ap.currArg != "" {
-				ap.commitCurrArg()
+			ap.state = stopped
+			if ap.charBuff != "" {
+				ap.commitCharBuff()
 			}
 		default:
-			ap.currArg += string(ap.ch)
+			ap.charBuff += string(ap.ch)
 
 		}
 
@@ -99,13 +108,27 @@ func (ap *ArgParser) Parse() {
 
 }
 
-func (ap *ArgParser) commitCurrArg() {
-	ap.Args = append(ap.Args, ap.currArg)
-	ap.currArg = ""
+func (ap *ArgParser) commitCharBuff() {
+	ap.Args = append(ap.Args, ap.charBuff)
+	ap.charBuff = ""
 }
 
 func (ap *ArgParser) skipWhiteSpace() {
 	for ap.readPosition == ' ' {
 		ap.readChar()
 	}
+}
+
+func inSpecialChars(b byte) bool {
+	specialChars := []byte{'\'', '"', ' ', '\\'}
+	for _, v := range specialChars {
+		if v == b {
+			return true
+		}
+	}
+	return false
+}
+
+func (ap *ArgParser) anyQuotesOpen() bool {
+	return ap.state == singleQuotesOpen || ap.state == doubleQuotesOpen
 }
