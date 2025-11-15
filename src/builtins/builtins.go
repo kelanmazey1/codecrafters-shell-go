@@ -10,14 +10,15 @@ import (
 	"github.com/codecrafters-io/shell-starter-go/src/executables"
 )
 
-type BuiltInType string
+type BuiltInType int
 
 const (
-	EXIT = "EXIT"
-	ECHO = "ECHO"
-	TYPE = "TYPE"
-	PWD  = "PWD"
-	CD   = "CD"
+	_ BuiltInType = iota
+	EXIT
+	ECHO
+	TYPE
+	PWD
+	CD
 )
 
 // TODO: Not sure if I should just be returning the const or making separate structs??
@@ -30,7 +31,7 @@ var builtinCommandMap = map[string]BuiltInType{
 }
 
 type BuiltIn struct {
-	Type    BuiltInType // This should be an interface I think? That could be any command a BuiltIn or otherwise
+	Type    BuiltInType
 	Literal string
 	Args    []string
 }
@@ -45,7 +46,7 @@ func (b BuiltIn) GetLiteral() string {
 
 func NewBuiltIn(input []string) (BuiltIn, error) {
 	cmd := lookupBuiltIn(input[0])
-	if cmd == "" {
+	if cmd == 0 {
 		return BuiltIn{}, errors.New("Broken")
 	}
 	return BuiltIn{
@@ -64,7 +65,7 @@ func IsBuiltIn(c string) bool {
 func lookupBuiltIn(c string) BuiltInType {
 	cmd, ok := builtinCommandMap[c]
 	if !ok {
-		return ""
+		return 0
 	}
 
 	return cmd

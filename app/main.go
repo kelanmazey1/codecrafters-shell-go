@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/codecrafters-io/shell-starter-go/src/argparse"
 	"github.com/codecrafters-io/shell-starter-go/src/commands"
 )
 
@@ -18,8 +19,10 @@ func main() {
 			os.Exit(1)
 		}
 
-		cmd, err := commands.New(input)
+		parser := argparse.New(input)
+		parser.Parse()
 
+		cmd, err := commands.New(parser.Args)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			continue
