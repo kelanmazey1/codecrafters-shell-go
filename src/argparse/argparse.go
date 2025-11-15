@@ -7,7 +7,8 @@ type ParserState int
 const (
 	_ = iota
 	Reading
-	QuotesOpen
+	SingleQuotesOpen
+	DoubleQuotesOpen
 	Stopped
 )
 
@@ -51,20 +52,29 @@ func (ap *ArgParser) peekChar() byte {
 }
 
 // Output separate arguments from single string input
+// TODO: Probably a refactor here with just having 'Qouting' and then 'Escaped' states instead of single doulbe
 func (ap *ArgParser) Parse() {
 	for ap.state != Stopped {
 		switch ap.ch {
+		case '"':
+			if ap.state == DoubleQuotesOpen {
+				ap.commitCurrArg()
+			} else {
+				ap.state = DoubleQuotesOpen
+			}
 		case '\'':
-			if ap.peekChar() == '\'' {
+			if ap.state == DoubleQuotesOpen {
+				ap.currArg += string(ap.ch)
+			} else if ap.peekChar() == '\'' {
 				ap.readChar() // Move through empty quotes, next quote is skpped after switch
-			} else if ap.state == QuotesOpen {
+			} else if ap.state == SingleQuotesOpen {
 				ap.commitCurrArg()
 				ap.state = Reading
 			} else {
-				ap.state = QuotesOpen
+				ap.state = SingleQuotesOpen
 			}
 		case ' ':
-			if ap.state == QuotesOpen {
+			if ap.state == SingleQuotesOpen || ap.state == DoubleQuotesOpen {
 				ap.currArg += string(ap.ch)
 			} else if ap.currArg == "" || ap.peekChar() == ' ' {
 				ap.skipWhiteSpace() // Unless we are parsing a literal we only take one space
