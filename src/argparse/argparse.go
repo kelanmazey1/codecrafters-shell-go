@@ -57,8 +57,11 @@ func (ap *ArgParser) Parse() {
 	for ap.state != Stopped {
 		switch ap.ch {
 		case '"':
-			if ap.state == DoubleQuotesOpen {
+			if ap.peekChar() == '"' {
+				ap.readChar()
+			} else if ap.state == DoubleQuotesOpen {
 				ap.commitCurrArg()
+				ap.state = Reading
 			} else {
 				ap.state = DoubleQuotesOpen
 			}
