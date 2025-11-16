@@ -57,12 +57,10 @@ func (ap *ArgParser) Parse() {
 	for ap.state != stopped {
 		switch ap.ch {
 		case '\\':
-			if ap.anyQuotesOpen() {
-				ap.charBuff += string(ap.ch)
-			} else if ap.state == doubleQuotesOpen && inSpecialChars(ap.peekChar()) {
-				ap.readChar() // Ignore backslash
-			} else {
+			if !ap.anyQuotesOpen() {
 				ap.readChar()
+				ap.charBuff += string(ap.ch)
+			} else {
 				ap.charBuff += string(ap.ch)
 			}
 		case '"':
@@ -71,14 +69,16 @@ func (ap *ArgParser) Parse() {
 			} else if ap.state == doubleQuotesOpen {
 				ap.commitCharBuff()
 				ap.state = reading
+			} else if ap.state == singleQuotesOpen {
+				ap.charBuff += string(ap.ch)
 			} else {
 				ap.state = doubleQuotesOpen
 			}
 		case '\'':
-			if ap.state == doubleQuotesOpen {
-				ap.charBuff += string(ap.ch)
-			} else if ap.peekChar() == '\'' {
+			if ap.peekChar() == '\'' {
 				ap.readChar() // Move through empty quotes, next quote is skpped after switch
+			} else if ap.state == doubleQuotesOpen {
+				ap.charBuff += string(ap.ch)
 			} else if ap.state == singleQuotesOpen {
 				ap.commitCharBuff()
 				ap.state = reading
@@ -86,10 +86,10 @@ func (ap *ArgParser) Parse() {
 				ap.state = singleQuotesOpen
 			}
 		case ' ':
-			if ap.anyQuotesOpen() {
-				ap.charBuff += string(ap.ch)
-			} else if ap.charBuff == "" || ap.peekChar() == ' ' {
+			if ap.charBuff == "" || ap.peekChar() == ' ' {
 				ap.skipWhiteSpace() // Unless we are parsing a literal we only take one space
+			} else if ap.anyQuotesOpen() {
+				ap.charBuff += string(ap.ch)
 			} else {
 				ap.commitCharBuff()
 			}
