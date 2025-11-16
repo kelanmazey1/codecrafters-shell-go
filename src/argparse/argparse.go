@@ -86,10 +86,10 @@ func (ap *ArgParser) Parse() {
 				ap.state = singleQuotesOpen
 			}
 		case ' ':
-			if ap.charBuff == "" || ap.peekChar() == ' ' {
-				ap.skipWhiteSpace() // Unless we are parsing a literal we only take one space
-			} else if ap.anyQuotesOpen() {
+			if ap.anyQuotesOpen() {
 				ap.charBuff += string(ap.ch)
+			} else if ap.charBuff == "" || ap.peekChar() == ' ' {
+				ap.skipWhiteSpace() // extra space outside literal or if charBuff is empty is meaningless
 			} else {
 				ap.commitCharBuff()
 			}
