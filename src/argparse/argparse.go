@@ -60,6 +60,9 @@ func (ap *ArgParser) Parse() {
 			if !ap.anyQuotesOpen() {
 				ap.readChar()
 				ap.charBuff += string(ap.ch)
+			} else if ap.state == doubleQuotesOpen && inSpecialChars(ap.peekChar()) {
+				ap.readChar()
+				ap.charBuff += string(ap.ch)
 			} else {
 				ap.charBuff += string(ap.ch)
 			}
@@ -67,7 +70,6 @@ func (ap *ArgParser) Parse() {
 			if ap.peekChar() == '"' {
 				ap.readChar()
 			} else if ap.state == doubleQuotesOpen {
-				ap.commitCharBuff()
 				ap.state = reading
 			} else if ap.state == singleQuotesOpen {
 				ap.charBuff += string(ap.ch)
@@ -80,7 +82,6 @@ func (ap *ArgParser) Parse() {
 			} else if ap.state == doubleQuotesOpen {
 				ap.charBuff += string(ap.ch)
 			} else if ap.state == singleQuotesOpen {
-				ap.commitCharBuff()
 				ap.state = reading
 			} else {
 				ap.state = singleQuotesOpen
@@ -120,7 +121,7 @@ func (ap *ArgParser) skipWhiteSpace() {
 }
 
 func inSpecialChars(b byte) bool {
-	specialChars := []byte{'\'', '"', ' ', '\\'}
+	specialChars := []byte{'"', '\\', '$', '\n', '`'}
 	for _, v := range specialChars {
 		if v == b {
 			return true
