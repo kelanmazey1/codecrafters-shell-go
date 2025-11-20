@@ -39,17 +39,13 @@ func New(input []argparse.Token) (Command, error) {
 }
 
 // Reads contents of r and outputs to outStream. Returns the number of bytes read from r.
-func WriteOutput(b *bytes.Buffer, outStream *os.File) (int, error) {
+func WriteOutput(b *bytes.Buffer, outStream *os.File) error {
 	toWrite := make([]byte, b.Len())
 	count, err := b.Read(toWrite)
 
-	if count == 0 {
-		return count, nil // Nothing to ouput, so return early
-	}
-
 	if err != nil {
 		if err != io.EOF {
-			return 0, err
+			return err
 		}
 	}
 
@@ -61,6 +57,6 @@ func WriteOutput(b *bytes.Buffer, outStream *os.File) (int, error) {
 	}
 	fmt.Fprint(outStream, string(toWrite[:count]))
 
-	return count, nil
+	return nil
 
 }

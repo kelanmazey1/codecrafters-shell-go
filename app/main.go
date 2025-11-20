@@ -56,13 +56,12 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 		}
 
-		count, err := commands.WriteOutput(outBuff, outStream)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+		if outBuff.Len() == 0 {
+			continue
 		}
 
-		if count == 0 {
-			continue
+		if err := commands.WriteOutput(outBuff, outStream); err != nil {
+			fmt.Fprintln(os.Stderr, err)
 		}
 
 	}
