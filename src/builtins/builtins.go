@@ -3,10 +3,12 @@ package builtins
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/codecrafters-io/shell-starter-go/src/argparse"
 	"github.com/codecrafters-io/shell-starter-go/src/executables"
 )
 
@@ -33,25 +35,29 @@ var builtinCommandMap = map[string]BuiltInType{
 type BuiltIn struct {
 	Type    BuiltInType
 	Literal string
-	Args    []string
+	Args    []argparse.Token
 }
 
-func (b BuiltIn) GetArgs() []string {
-	return b.Args
+func (b BuiltIn) GetStringArgs() []string {
+	out := make([]string, 0, len(b.Args))
+	for _, v := range b.Args {
+		out = append(out, v.Literal)
+	}
+	return out
 }
 
 func (b BuiltIn) GetLiteral() string {
 	return b.Literal
 }
 
-func NewBuiltIn(input []string) (BuiltIn, error) {
-	cmd := lookupBuiltIn(input[0])
+func NewBuiltIn(input []argparse.Token) (BuiltIn, error) {
+	cmd := lookupBuiltIn(input[0].Literal)
 	if cmd == 0 {
 		return BuiltIn{}, errors.New("Broken")
 	}
 	return BuiltIn{
 		Type:    cmd,
-		Literal: string(input[0]),
+		Literal: input[0].Literal,
 		Args:    input[1:],
 	}, nil
 }
@@ -71,32 +77,32 @@ func lookupBuiltIn(c string) BuiltInType {
 	return cmd
 }
 
-func (b BuiltIn) Exec() error {
+func (b BuiltIn) Exec(out io.Writer) error {
 	h, err := getHandler(b.Type)
 
 	if err != nil {
 		return err
 	}
-	err = h(b)
+	res, err := h(b)
 	if err != nil {
 		return err
 	}
 
+	out.Write([]byte(res))
 	return nil
 }
 
-type handlerFunc func(BuiltIn) error
+type handlerFunc func(BuiltIn) (string, error)
 
-func handleEcho(b BuiltIn) error {
-	outString := strings.Join(b.GetArgs(), " ")
-	fmt.Println(outString)
-	return nil
+func handleEcho(b BuiltIn) (string, error) {
+	outString := strings.Join(b.GetStringArgs(), " ")
+	return outString, nil
 }
 
-func handleExit(b BuiltIn) error {
-	args := b.GetArgs()
+func handleExit(b BuiltIn) (string, error) {
+	args := b.GetStringArgs()
 	if len(args) > 1 {
-		return &TooManyArgsErr{Cmd: "exit", Wanted: 1, Given: len(args)}
+		return "", &TooManyArgsErr{Cmd: "exit", Wanted: 1, Given: len(args)}
 	}
 
 	code, err := strconv.Atoi(args[0])
@@ -105,43 +111,40 @@ func handleExit(b BuiltIn) error {
 	}
 	os.Exit(int(code))
 
-	return nil
+	return "", nil
 }
 
-func handleType(b BuiltIn) error {
-	args := b.GetArgs()
+func handleType(b BuiltIn) (string, error) {
+	args := b.GetStringArgs()
 	// Only accept 1 arg
 	if len(args) > 1 {
-		return &TooManyArgsErr{Cmd: "exit", Wanted: 1, Given: len(args)}
+		return "", &TooManyArgsErr{Cmd: "exit", Wanted: 1, Given: len(args)}
 	}
 
 	if IsBuiltIn(args[0]) {
-		fmt.Printf("%s is a shell builtin\n", args[0])
-		return nil
+		return fmt.Sprintf("%s is a shell builtin\n", args[0]), nil
 	}
 
-	if e, err := executables.NewExecutable(args); err == nil {
-		fmt.Printf("%s is %s\n", e.GetLiteral(), e.Path)
-		return nil
+	if e, err := executables.NewExecutable(b.Args); err == nil {
+		return fmt.Sprintf("%s is %s\n", e.GetLiteral(), e.Path), nil
 	}
 
-	return fmt.Errorf("%s: not found", args[0])
+	return "", fmt.Errorf("%s: not found", args[0])
 
 }
 
-func handePwd(b BuiltIn) error {
+func handePwd(b BuiltIn) (string, error) {
 	d, err := os.Getwd()
 	if err != nil {
-		return err
+		return "", err
 	}
-	fmt.Println(d)
-	return nil
+	return d, nil
 }
 
-func handleCd(b BuiltIn) error {
-	args := b.GetArgs()
+func handleCd(b BuiltIn) (string, error) {
+	args := b.GetStringArgs()
 	if len(args) > 1 {
-		return &TooManyArgsErr{Cmd: "exit", Wanted: 1, Given: len(args)}
+		return "", &TooManyArgsErr{Cmd: "exit", Wanted: 1, Given: len(args)}
 	}
 
 	dir := args[0]
@@ -152,10 +155,10 @@ func handleCd(b BuiltIn) error {
 
 	err := os.Chdir(dir)
 	if err != nil {
-		return fmt.Errorf("cd: %s: No such file or directory", dir)
+		return "", fmt.Errorf("cd: %s: No such file or directory", dir)
 	}
 
-	return nil
+	return "", nil
 }
 
 func getHandler(c BuiltInType) (handlerFunc, error) {

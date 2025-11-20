@@ -1,5 +1,10 @@
 package argparse
 
+import (
+	"errors"
+	"os"
+)
+
 // Package to manage token parsing, a diet lexer?
 
 type ParserState int
@@ -14,8 +19,8 @@ const (
 
 type ArgParser struct {
 	state        ParserState
-	Args         []string // confirmed parsed args
-	charBuff     string   // current arg being constructed
+	Args         []Token // confirmed parsed args
+	charBuff     string  // current arg being constructed, should probably be a []byte
 	input        string
 	position     int  // index of current char in ch
 	readPosition int  // index of next char to be read
@@ -57,10 +62,8 @@ func (ap *ArgParser) Parse() {
 	for ap.state != stopped {
 		switch ap.ch {
 		case '\\':
-			if !ap.anyQuotesOpen() {
-				ap.readChar()
-				ap.charBuff += string(ap.ch)
-			} else if ap.state == doubleQuotesOpen && inSpecialChars(ap.peekChar()) {
+			if !ap.anyQuotesOpen() ||
+				(ap.state == doubleQuotesOpen && inSpecialChars(ap.peekChar())) {
 				ap.readChar()
 				ap.charBuff += string(ap.ch)
 			} else {
@@ -92,15 +95,20 @@ func (ap *ArgParser) Parse() {
 			} else if ap.charBuff == "" || ap.peekChar() == ' ' {
 				ap.skipWhiteSpace() // extra space outside literal or if charBuff is empty is meaningless
 			} else {
-				ap.commitCharBuff()
+				ap.commitCharBuff("arg")
 			}
 		case '\n':
 			ap.state = stopped
 			if ap.charBuff != "" {
-				ap.commitCharBuff()
+				ap.commitCharBuff(ARG)
 			}
 		default:
-			ap.charBuff += string(ap.ch)
+			if !ap.anyQuotesOpen() && LookupOperator(string(ap.ch)) != ARG {
+				ap.charBuff += string(ap.ch)
+				ap.commitCharBuff(LookupOperator(string(ap.ch)))
+			} else {
+				ap.charBuff += string(ap.ch)
+			}
 
 		}
 
@@ -109,8 +117,9 @@ func (ap *ArgParser) Parse() {
 
 }
 
-func (ap *ArgParser) commitCharBuff() {
-	ap.Args = append(ap.Args, ap.charBuff)
+// Commits current charBuff whilst setting TokenType
+func (ap *ArgParser) commitCharBuff(t TokenType) {
+	ap.Args = append(ap.Args, Token{Literal: ap.charBuff, Type: t})
 	ap.charBuff = ""
 }
 
@@ -120,10 +129,10 @@ func (ap *ArgParser) skipWhiteSpace() {
 	}
 }
 
-func inSpecialChars(b byte) bool {
+func inSpecialChars(ch byte) bool {
 	specialChars := []byte{'"', '\\', '$', '\n', '`'}
 	for _, v := range specialChars {
-		if v == b {
+		if v == ch {
 			return true
 		}
 	}
@@ -132,4 +141,72 @@ func inSpecialChars(b byte) bool {
 
 func (ap *ArgParser) anyQuotesOpen() bool {
 	return ap.state == singleQuotesOpen || ap.state == doubleQuotesOpen
+}
+
+func (ap *ArgParser) containsOperator() bool {
+	for _, a := range ap.Args {
+		if LookupOperator(a.Literal) != ARG {
+			return true
+		}
+	}
+	return false
+}
+
+func (ap *ArgParser) GetOperator() (Token, error) {
+	for _, a := range ap.Args {
+		if LookupOperator(a.Literal) != ARG {
+			return a, nil
+		}
+	}
+	return Token{}, errors.New("no operator in input")
+}
+
+// Returns all args before any operator or all args if no operator present
+func (ap *ArgParser) GetPreOperatorArgs() []Token {
+	out := make([]Token, 0, len(ap.Args))
+
+	for _, a := range ap.Args {
+		if LookupOperator(a.Literal) != ARG {
+			break
+		}
+		out = append(out, a)
+	}
+
+	return out
+}
+
+// Returns target for redirection operation if given, errors if no operator set
+func (ap *ArgParser) getRigthOperand() (Token, error) {
+	opSeen := false
+	for _, a := range ap.Args {
+		if opSeen { // Return first Token immediately after operator
+			return a, nil
+		}
+		if LookupOperator(a.Literal) != ARG {
+			opSeen = true
+		}
+
+	}
+
+	return Token{}, errors.New("no operator in input") // If we never see operator
+}
+
+func (ap *ArgParser) GetOutputStream() (*os.File, error) {
+	if ap.containsOperator() {
+		// op, err := p.GetOperator()
+
+		t, err := ap.getRigthOperand()
+		if err != nil {
+			return nil, err
+		}
+		f, err := os.Create(t.Literal)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return f, nil
+	} else {
+		return os.Stdout, nil
+	}
 }

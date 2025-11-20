@@ -2,19 +2,22 @@ package executables
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+
+	"github.com/codecrafters-io/shell-starter-go/src/argparse"
 )
 
 type Executable struct {
 	Path    string
 	Literal string
-	Args    []string
+	Args    []argparse.Token
 }
 
-func NewExecutable(inputSplit []string) (Executable, error) {
+func NewExecutable(inputSplit []argparse.Token) (Executable, error) {
 	e := Executable{
-		Literal: string(inputSplit[0]),
+		Literal: inputSplit[0].Literal,
 	}
 
 	if len(inputSplit) > 1 { // Assume has args
@@ -30,8 +33,14 @@ func NewExecutable(inputSplit []string) (Executable, error) {
 	return e, nil
 }
 
-func (e Executable) GetArgs() []string {
-	return e.Args
+func (e Executable) GetStringArgs() []string {
+	strArgs := make([]string, 0, len(e.Args))
+
+	for _, a := range e.Args {
+		strArgs = append(strArgs, a.Literal)
+	}
+
+	return strArgs
 }
 
 func (e Executable) Output() string {
@@ -42,16 +51,14 @@ func (e Executable) GetLiteral() string {
 	return e.Literal
 }
 
-// Runs os.Exec(e.Literal) with e.Args
-func (e Executable) Exec() error {
-	cmd := exec.Command(e.Literal, e.GetArgs()...)
-	out, err := cmd.Output()
+func (e Executable) Exec(out io.Writer) error {
+	cmd := exec.Command(e.Literal, e.GetStringArgs()...)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = out
 
-	if err != nil {
+	if err := cmd.Run(); err != nil {
 		return err
 	}
-
-	fmt.Fprint(os.Stdout, string(out))
-
 	return nil
+
 }
