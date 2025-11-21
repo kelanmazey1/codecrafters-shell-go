@@ -2,6 +2,7 @@ package argparse
 
 import (
 	"errors"
+	"fmt"
 	"os"
 )
 
@@ -95,7 +96,7 @@ func (ap *ArgParser) Parse() {
 			} else if ap.charBuff == "" || ap.peekChar() == ' ' {
 				ap.skipWhiteSpace() // extra space outside literal or if charBuff is empty is meaningless
 			} else {
-				ap.commitCharBuff("arg")
+				ap.commitCharBuff(ARG)
 			}
 		case '\n':
 			ap.state = stopped
@@ -103,15 +104,25 @@ func (ap *ArgParser) Parse() {
 				ap.commitCharBuff(ARG)
 			}
 		default:
-			if !ap.anyQuotesOpen() && LookupOperator(string(ap.ch)) != ARG {
-				ap.charBuff += string(ap.ch)
-				ap.commitCharBuff(LookupOperator(string(ap.ch)))
+			if !ap.anyQuotesOpen() && (ap.ch == '>' || ap.peekChar() == '>') {
+
+				// Handle file descriptor in operator
+				if isNumber(ap.ch) {
+					ap.charBuff += string(ap.ch)
+					ap.charBuff += string(ap.peekChar())
+				} else {
+					// Handle '>'
+					ap.charBuff += string('1') // '>' is equivalent to '1>'
+					ap.charBuff += string(ap.ch)
+				}
+
+				ap.commitCharBuff(LookupOperator(ap.charBuff))
+				ap.readChar() // Move to '>' which will be skipped by looping ap.readChar()
 			} else {
 				ap.charBuff += string(ap.ch)
 			}
 
 		}
-
 		ap.readChar()
 	}
 
@@ -129,6 +140,10 @@ func (ap *ArgParser) skipWhiteSpace() {
 	}
 }
 
+func isNumber(ch byte) bool {
+	return '0' <= ch && ch <= '9'
+}
+
 func inSpecialChars(ch byte) bool {
 	specialChars := []byte{'"', '\\', '$', '\n', '`'}
 	for _, v := range specialChars {
@@ -141,15 +156,6 @@ func inSpecialChars(ch byte) bool {
 
 func (ap *ArgParser) anyQuotesOpen() bool {
 	return ap.state == singleQuotesOpen || ap.state == doubleQuotesOpen
-}
-
-func (ap *ArgParser) containsOperator() bool {
-	for _, a := range ap.Args {
-		if LookupOperator(a.Literal) != ARG {
-			return true
-		}
-	}
-	return false
 }
 
 func (ap *ArgParser) GetOperator() (Token, error) {
@@ -175,38 +181,34 @@ func (ap *ArgParser) GetPreOperatorArgs() []Token {
 	return out
 }
 
-// Returns target for redirection operation if given, errors if no operator set
-func (ap *ArgParser) getRigthOperand() (Token, error) {
-	opSeen := false
-	for _, a := range ap.Args {
-		if opSeen { // Return first Token immediately after operator
-			return a, nil
-		}
-		if LookupOperator(a.Literal) != ARG {
-			opSeen = true
+func (ap *ArgParser) GetOutputStreams() (stdout *os.File, stderr *os.File, err error) {
+	// We default to os.Stdout and os.Stderr
+	stdout = os.Stdout
+	stderr = os.Stderr
+
+	for i, t := range ap.Args {
+		if isOperator(t) {
+
+			if i+1 > len(ap.Args) {
+				return nil, nil, fmt.Errorf("operator %s has no right operand", t.Literal)
+			}
+
+			op := ap.Args[i+1]
+
+			f, err := os.Create(op.Literal)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			if t.Type == REDIRECTSTDOUT {
+				stdout = f
+			}
+
+			if t.Type == REDIRECTSTDERR {
+				stderr = f
+			}
 		}
 
 	}
-
-	return Token{}, errors.New("no operator in input") // If we never see operator
-}
-
-func (ap *ArgParser) GetOutputStream() (*os.File, error) {
-	if ap.containsOperator() {
-		// op, err := p.GetOperator()
-
-		t, err := ap.getRigthOperand()
-		if err != nil {
-			return nil, err
-		}
-		f, err := os.Create(t.Literal)
-
-		if err != nil {
-			return nil, err
-		}
-
-		return f, nil
-	} else {
-		return os.Stdout, nil
-	}
+	return stdout, stderr, nil
 }

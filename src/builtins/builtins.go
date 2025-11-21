@@ -77,7 +77,7 @@ func lookupBuiltIn(c string) BuiltInType {
 	return cmd
 }
 
-func (b BuiltIn) Exec(out io.Writer) error {
+func (b BuiltIn) Exec(out io.Writer, errors io.Writer) error {
 	h, err := getHandler(b.Type)
 
 	if err != nil {
@@ -100,7 +100,15 @@ func handleEcho(b BuiltIn) (string, error) {
 }
 
 func handleExit(b BuiltIn) (string, error) {
+	// Assume no args mean exit 0
+	if len(b.Args) == 0 {
+		b.Args = []argparse.Token{
+			{Literal: "0", Type: argparse.ARG},
+		}
+	}
+
 	args := b.GetStringArgs()
+
 	if len(args) > 1 {
 		return "", &TooManyArgsErr{Cmd: "exit", Wanted: 1, Given: len(args)}
 	}

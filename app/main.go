@@ -14,12 +14,16 @@ import (
 
 func main() {
 	var outStream *os.File
+	var errStream *os.File
 
 	for {
 
-		// Close stream from last iteration if not stdout
-		if outStream != nil && outStream != os.Stdout && outStream != os.Stderr {
+		// Close stream from last iteration if not stdout or stderr
+		if outStream != nil && outStream != os.Stdout {
 			outStream.Close()
+		}
+		if errStream != nil && errStream != os.Stderr {
+			errStream.Close()
 		}
 
 		fmt.Fprint(os.Stdout, "$ ")
@@ -44,26 +48,40 @@ func main() {
 		}
 
 		outBuff := &bytes.Buffer{}
-		if err := cmd.Exec(outBuff); err != nil {
+		errBuff := &bytes.Buffer{}
+
+		if err := cmd.Exec(outBuff, errBuff); err != nil {
 			var exitErr *exec.ExitError // This error type will cause the exit status of the underlying process
 			if !errors.As(err, &exitErr) {
-				fmt.Fprintln(os.Stderr, err)
+				errBuff.Write([]byte(err.Error()))
 			}
 		}
 
-		outStream, err = parser.GetOutputStream()
+		outStream, errStream, err = parser.GetOutputStreams()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 
-		if outBuff.Len() == 0 {
+		if outputBuffsEmpty(outBuff, errBuff) {
 			continue
 		}
 
-		if err := commands.WriteOutput(outBuff, outStream); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+		if outBuff.Len() != 0 {
+			if err := commands.WriteOutput(outBuff, outStream); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+			}
+		}
+
+		if errBuff.Len() != 0 {
+			if err := commands.WriteOutput(errBuff, errStream); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+			}
 		}
 
 	}
 
+}
+
+func outputBuffsEmpty(o *bytes.Buffer, e *bytes.Buffer) bool {
+	return o.Len() == 0 && e.Len() == 0
 }

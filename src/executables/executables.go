@@ -3,7 +3,6 @@ package executables
 import (
 	"fmt"
 	"io"
-	"os"
 	"os/exec"
 
 	"github.com/codecrafters-io/shell-starter-go/src/argparse"
@@ -51,9 +50,9 @@ func (e Executable) GetLiteral() string {
 	return e.Literal
 }
 
-func (e Executable) Exec(out io.Writer) error {
+func (e Executable) Exec(out io.Writer, errors io.Writer) error {
 	cmd := exec.Command(e.Literal, e.GetStringArgs()...)
-	cmd.Stderr = os.Stderr
+	cmd.Stderr = errors
 	cmd.Stdout = out
 
 	if err := cmd.Run(); err != nil {
