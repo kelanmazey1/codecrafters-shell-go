@@ -8,6 +8,8 @@ const (
 
 	REDIRECTSTDOUT = "1>"
 	REDIRECTSTDERR = "2>"
+	APPENDSTDOUT   = "1>>"
+	APPENDSTDERR   = "2>>"
 )
 
 type Token struct {
@@ -16,8 +18,12 @@ type Token struct {
 }
 
 var operatorsMap = map[string]TokenType{
-	"1>": REDIRECTSTDOUT,
-	"2>": REDIRECTSTDERR,
+	">":   REDIRECTSTDOUT,
+	"1>":  REDIRECTSTDOUT,
+	"2>":  REDIRECTSTDERR,
+	">>":  APPENDSTDOUT,
+	"1>>": APPENDSTDOUT,
+	"2>>": APPENDSTDERR,
 }
 
 func LookupOperator(s string) TokenType {

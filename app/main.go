@@ -57,7 +57,7 @@ func main() {
 			}
 		}
 
-		outStream, errStream, err = parser.GetOutputStreams()
+		outConfig, err := parser.GetOutputConfig()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
@@ -67,13 +67,13 @@ func main() {
 		}
 
 		if outBuff.Len() != 0 {
-			if err := commands.WriteOutput(outBuff, outStream); err != nil {
+			if err := commands.WriteOutput(outBuff, outConfig.Stdout, outConfig.Mode); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 			}
 		}
 
 		if errBuff.Len() != 0 {
-			if err := commands.WriteOutput(errBuff, errStream); err != nil {
+			if err := commands.WriteOutput(errBuff, outConfig.Stderr, outConfig.Mode); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 			}
 		}

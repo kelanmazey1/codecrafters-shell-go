@@ -15,6 +15,7 @@ const (
 	reading
 	singleQuotesOpen
 	doubleQuotesOpen
+	readingOperator
 	stopped
 )
 
@@ -61,6 +62,11 @@ func (ap *ArgParser) peekChar() byte {
 // TODO: Probably a refactor here with just having 'Qouting' and then 'Escaped' states instead of single doulbe
 func (ap *ArgParser) Parse() {
 	for ap.state != stopped {
+
+		if ap.peekChar() == '>' {
+			ap.state = readingOperator
+		}
+
 		switch ap.ch {
 		case '\\':
 			if !ap.anyQuotesOpen() ||
@@ -93,10 +99,16 @@ func (ap *ArgParser) Parse() {
 		case ' ':
 			if ap.anyQuotesOpen() {
 				ap.charBuff += string(ap.ch)
-			} else if ap.charBuff == "" || ap.peekChar() == ' ' {
+			} else if ap.peekChar() == ' ' || ap.charBuffEmpty() {
 				ap.skipWhiteSpace() // extra space outside literal or if charBuff is empty is meaningless
 			} else {
 				ap.commitCharBuff(ARG)
+			}
+		case '>':
+			ap.charBuff += string(ap.ch)
+			if ap.peekChar() == ' ' && ap.state == readingOperator {
+				ap.commitCharBuff(LookupOperator(ap.charBuff))
+				ap.state = reading
 			}
 		case '\n':
 			ap.state = stopped
@@ -104,24 +116,8 @@ func (ap *ArgParser) Parse() {
 				ap.commitCharBuff(ARG)
 			}
 		default:
-			if !ap.anyQuotesOpen() && (ap.ch == '>' || ap.peekChar() == '>') {
 
-				// Handle file descriptor in operator
-				if isNumber(ap.ch) {
-					ap.charBuff += string(ap.ch)
-					ap.charBuff += string(ap.peekChar())
-				} else {
-					// Handle '>'
-					ap.charBuff += string('1') // '>' is equivalent to '1>'
-					ap.charBuff += string(ap.ch)
-				}
-
-				ap.commitCharBuff(LookupOperator(ap.charBuff))
-				ap.readChar() // Move to '>' which will be skipped by looping ap.readChar()
-			} else {
-				ap.charBuff += string(ap.ch)
-			}
-
+			ap.charBuff += string(ap.ch)
 		}
 		ap.readChar()
 	}
@@ -140,8 +136,8 @@ func (ap *ArgParser) skipWhiteSpace() {
 	}
 }
 
-func isNumber(ch byte) bool {
-	return '0' <= ch && ch <= '9'
+func (ap *ArgParser) charBuffEmpty() bool {
+	return len(ap.charBuff) == 0
 }
 
 func inSpecialChars(ch byte) bool {
@@ -181,34 +177,73 @@ func (ap *ArgParser) GetPreOperatorArgs() []Token {
 	return out
 }
 
-func (ap *ArgParser) GetOutputStreams() (stdout *os.File, stderr *os.File, err error) {
+type OutputMode int
+
+const (
+	Replace OutputMode = iota
+	Append
+)
+
+func (o OutputMode) isValid() bool {
+	return o == Replace || o == Append
+}
+
+type OutputConfig struct {
+	Stdout *os.File
+	Stderr *os.File
+	Mode   OutputMode
+}
+
+// Returns OutputConfig for command outputs, Stdout and Stderr cannot be closed! This needs to be done by caller
+func (ap *ArgParser) GetOutputConfig() (o OutputConfig, err error) {
 	// We default to os.Stdout and os.Stderr
-	stdout = os.Stdout
-	stderr = os.Stderr
+	stdout := os.Stdout
+	stderr := os.Stderr
+	var mode OutputMode = Replace // Default to replace
 
 	for i, t := range ap.Args {
 		if isOperator(t) {
 
 			if i+1 > len(ap.Args) {
-				return nil, nil, fmt.Errorf("operator %s has no right operand", t.Literal)
+				return OutputConfig{}, fmt.Errorf("operator %s has no right operand", t.Literal)
 			}
 
 			op := ap.Args[i+1]
 
-			f, err := os.Create(op.Literal)
+			var f *os.File
+			var err error
+
+			if t.Type == APPENDSTDERR || t.Type == APPENDSTDOUT {
+				f, err = os.OpenFile(op.Literal, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644) // If appending we want to append to the existing file
+			} else {
+				f, err = os.Create(op.Literal)
+			}
 			if err != nil {
-				return nil, nil, err
+				return OutputConfig{}, err
 			}
 
-			if t.Type == REDIRECTSTDOUT {
+			switch t.Type {
+			case REDIRECTSTDOUT:
 				stdout = f
+				mode = Replace
+			case REDIRECTSTDERR:
+				stderr = f
+				mode = Replace
+			case APPENDSTDOUT:
+				stdout = f
+				mode = Append
+			case APPENDSTDERR:
+				stderr = f
+				mode = Append
 			}
 
-			if t.Type == REDIRECTSTDERR {
-				stderr = f
-			}
 		}
 
 	}
-	return stdout, stderr, nil
+
+	if !mode.isValid() {
+		return OutputConfig{}, errors.New("GetOutputConfig with invalid mode")
+	}
+
+	return OutputConfig{Stdout: stdout, Stderr: stderr, Mode: mode}, nil
 }
