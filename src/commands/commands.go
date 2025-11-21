@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/codecrafters-io/shell-starter-go/src/argparse"
 	"github.com/codecrafters-io/shell-starter-go/src/builtins"
@@ -54,8 +55,10 @@ func WriteOutput(b io.Reader, outStream io.WriteSeeker, mode argparse.OutputMode
 	}
 
 	if mode == argparse.Append {
-		if _, err := outStream.Seek(0, io.SeekEnd); err != nil {
-			return fmt.Errorf("error in WriteOutput reading from io.ReadWriter: %w", err)
+		if !(outStream == os.Stderr || outStream == os.Stdout) {
+			if _, err := outStream.Seek(0, io.SeekEnd); err != nil {
+				return fmt.Errorf("error in WriteOutput reading from io.ReadWriter: %w", err)
+			}
 		}
 
 		written, err := outStream.Write(newData)
