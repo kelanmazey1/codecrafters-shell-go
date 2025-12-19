@@ -16,7 +16,7 @@ import (
 type Command interface {
 	GetStringArgs() []string
 	GetLiteral() string
-	Exec(stdout io.Writer, stderr io.Writer) error // Has to be a WriteCloser as caller is in infinite loop for REPl so cannot close
+	Exec(stdout io.Writer, stderr io.Writer) error
 }
 
 func New(input []argparse.Token) (Command, error) {
@@ -38,10 +38,10 @@ func New(input []argparse.Token) (Command, error) {
 
 }
 
-// Reads contents of r and outputs to outStream. Returns the number of bytes read from r.
-func WriteOutput(b io.Reader, outStream io.WriteSeeker, mode argparse.OutputMode) error {
-	toWrite := make([]byte, 2048) // This amound is selected cause I can't think it would get much bigger?
-	count, err := b.Read(toWrite)
+// Reads contents of r and outputs to outStream.
+func WriteOutput(r io.Reader, outStream io.WriteSeeker, mode argparse.OutputMode) error {
+	toWrite := make([]byte, 2048) // This amount is selected cause I can't think it would get much bigger?
+	count, err := r.Read(toWrite)
 
 	newData := toWrite[:count]
 	if err != nil {
@@ -79,7 +79,7 @@ func WriteOutput(b io.Reader, outStream io.WriteSeeker, mode argparse.OutputMode
 
 	// This is jank but kept getting output$
 	if newData[len(newData)-1] != '\n' {
-		outStream.Write([]byte{'\n'})
+		outStream.Write([]byte{'\n', '\r'})
 	}
 
 	return nil

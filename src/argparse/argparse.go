@@ -22,20 +22,24 @@ const (
 type ArgParser struct {
 	state        ParserState
 	Args         []Token // confirmed parsed args
-	charBuff     string  // current arg being constructed, should probably be a []byte
-	input        string
+	charBuff     []byte  // current arg being constructed, should probably be a []byte
+	input        []byte
 	position     int  // index of current char in ch
 	readPosition int  // index of next char to be read
 	ch           byte // current char being read
 }
 
-func New(i string) *ArgParser {
+func New(i []byte) *ArgParser {
 	ap := &ArgParser{
 		input: i,
 		state: reading,
 	}
 	ap.readChar()
 	return ap
+}
+
+func (ap *ArgParser) SetInput(i []byte) {
+	ap.input = i
 }
 
 // Increment through input
@@ -72,9 +76,9 @@ func (ap *ArgParser) Parse() {
 			if !ap.anyQuotesOpen() ||
 				(ap.state == doubleQuotesOpen && inSpecialChars(ap.peekChar())) {
 				ap.readChar()
-				ap.charBuff += string(ap.ch)
+				ap.charBuff = append(ap.charBuff, ap.ch)
 			} else {
-				ap.charBuff += string(ap.ch)
+				ap.charBuff = append(ap.charBuff, ap.ch)
 			}
 		case '"':
 			if ap.peekChar() == '"' {
@@ -82,7 +86,7 @@ func (ap *ArgParser) Parse() {
 			} else if ap.state == doubleQuotesOpen {
 				ap.state = reading
 			} else if ap.state == singleQuotesOpen {
-				ap.charBuff += string(ap.ch)
+				ap.charBuff = append(ap.charBuff, ap.ch)
 			} else {
 				ap.state = doubleQuotesOpen
 			}
@@ -90,7 +94,7 @@ func (ap *ArgParser) Parse() {
 			if ap.peekChar() == '\'' {
 				ap.readChar() // Move through empty quotes, next quote is skpped after switch
 			} else if ap.state == doubleQuotesOpen {
-				ap.charBuff += string(ap.ch)
+				ap.charBuff = append(ap.charBuff, ap.ch)
 			} else if ap.state == singleQuotesOpen {
 				ap.state = reading
 			} else {
@@ -98,26 +102,25 @@ func (ap *ArgParser) Parse() {
 			}
 		case ' ':
 			if ap.anyQuotesOpen() {
-				ap.charBuff += string(ap.ch)
+				ap.charBuff = append(ap.charBuff, ap.ch)
 			} else if ap.peekChar() == ' ' || ap.charBuffEmpty() {
 				ap.skipWhiteSpace() // extra space outside literal or if charBuff is empty is meaningless
 			} else {
 				ap.commitCharBuff(ARG)
 			}
 		case '>':
-			ap.charBuff += string(ap.ch)
+			ap.charBuff = append(ap.charBuff, ap.ch)
 			if ap.peekChar() == ' ' && ap.state == readingOperator {
 				ap.commitCharBuff(LookupOperator(ap.charBuff))
 				ap.state = reading
 			}
-		case '\n':
+		case '\r', '\n':
 			ap.state = stopped
-			if ap.charBuff != "" {
+			if len(ap.charBuff) != 0 {
 				ap.commitCharBuff(ARG)
 			}
 		default:
-
-			ap.charBuff += string(ap.ch)
+			ap.charBuff = append(ap.charBuff, ap.ch)
 		}
 		ap.readChar()
 	}
@@ -126,8 +129,8 @@ func (ap *ArgParser) Parse() {
 
 // Commits current charBuff whilst setting TokenType
 func (ap *ArgParser) commitCharBuff(t TokenType) {
-	ap.Args = append(ap.Args, Token{Literal: ap.charBuff, Type: t})
-	ap.charBuff = ""
+	ap.Args = append(ap.Args, Token{Literal: string(ap.charBuff), Type: t})
+	ap.charBuff = []byte{}
 }
 
 func (ap *ArgParser) skipWhiteSpace() {
@@ -156,7 +159,7 @@ func (ap *ArgParser) anyQuotesOpen() bool {
 
 func (ap *ArgParser) GetOperator() (Token, error) {
 	for _, a := range ap.Args {
-		if LookupOperator(a.Literal) != ARG {
+		if LookupOperator([]byte(a.Literal)) != ARG {
 			return a, nil
 		}
 	}
@@ -168,7 +171,7 @@ func (ap *ArgParser) GetPreOperatorArgs() []Token {
 	out := make([]Token, 0, len(ap.Args))
 
 	for _, a := range ap.Args {
-		if LookupOperator(a.Literal) != ARG {
+		if LookupOperator([]byte(a.Literal)) != ARG {
 			break
 		}
 		out = append(out, a)
@@ -208,15 +211,15 @@ func (ap *ArgParser) GetOutputConfig() (o OutputConfig, err error) {
 				return OutputConfig{}, fmt.Errorf("operator %s has no right operand", t.Literal)
 			}
 
-			op := ap.Args[i+1]
+			operand := ap.Args[i+1]
 
 			var f *os.File
 			var err error
 
 			if t.Type == APPENDSTDERR || t.Type == APPENDSTDOUT {
-				f, err = os.OpenFile(op.Literal, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644) // If appending we want to append to the existing file
+				f, err = os.OpenFile(operand.Literal, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644) // If appending we want to append to the existing file
 			} else {
-				f, err = os.Create(op.Literal)
+				f, err = os.Create(operand.Literal)
 			}
 			if err != nil {
 				return OutputConfig{}, err

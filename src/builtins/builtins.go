@@ -38,6 +38,15 @@ type BuiltIn struct {
 	Args    []argparse.Token
 }
 
+// Returns names for all builtins, no err is needed as map is hardcoded
+func Names() []string {
+	var n []string
+	for name := range builtinCommandMap {
+		n = append(n, name)
+	}
+	return n
+}
+
 func (b BuiltIn) GetStringArgs() []string {
 	out := make([]string, 0, len(b.Args))
 	for _, v := range b.Args {
@@ -81,10 +90,13 @@ func (b BuiltIn) Exec(out io.Writer, errors io.Writer) error {
 	h, err := getHandler(b.Type)
 
 	if err != nil {
+		errors.Write([]byte(err.Error()))
 		return err
 	}
+
 	res, err := h(b)
 	if err != nil {
+		errors.Write([]byte(err.Error()))
 		return err
 	}
 
@@ -115,7 +127,7 @@ func handleExit(b BuiltIn) (string, error) {
 
 	code, err := strconv.Atoi(args[0])
 	if err != nil {
-		fmt.Println(err)
+		return "", err
 	}
 	os.Exit(int(code))
 

@@ -26,8 +26,9 @@ var operatorsMap = map[string]TokenType{
 	"2>>": APPENDSTDERR,
 }
 
-func LookupOperator(s string) TokenType {
-	if t, ok := operatorsMap[s]; ok {
+func LookupOperator(s []byte) TokenType {
+	op := string(s)
+	if t, ok := operatorsMap[op]; ok {
 		return t
 	}
 	return ARG
