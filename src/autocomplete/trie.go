@@ -1,7 +1,5 @@
 package autocomplete
 
-import "fmt"
-
 // Trie data structure and helper methods for populating builtins and executables
 
 type Trie struct {
@@ -109,20 +107,4 @@ func (t *Trie) GetWordsForPrefix(pr []byte, node *TrieNode, words [][]byte) [][]
 		}
 	}
 	return words
-}
-
-func getCharIndex(c byte) int {
-	switch {
-	// Add special cases
-	case c >= '0' && c <= '9':
-		return 51 + (int(c) - 48) // - 48 to numerical value
-	// 3 special cases to handle underscores and slashes in program names
-	case c >= 'a' && c <= 'z':
-		return int(c-'a') + 26 // a - a == 0 then moved to 26th element
-	case c >= 'A' && c <= 'Z':
-		return int(c - 'A')
-	default:
-		fmt.Println("this was ", string(c), " it's int is ", int(c), " it's normal val is ", c)
-		return int(c)
-	}
 }
