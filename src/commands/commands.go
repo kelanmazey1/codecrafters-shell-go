@@ -79,7 +79,7 @@ func WriteOutput(r io.Reader, outStream io.WriteSeeker, mode argparse.OutputMode
 
 	// This is jank but kept getting output$
 	if newData[len(newData)-1] != '\n' {
-		outStream.Write([]byte{'\n', '\r'})
+		outStream.Write([]byte{'\n'})
 	}
 
 	return nil

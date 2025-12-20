@@ -38,10 +38,6 @@ func New(i []byte) *ArgParser {
 	return ap
 }
 
-func (ap *ArgParser) SetInput(i []byte) {
-	ap.input = i
-}
-
 // Increment through input
 func (ap *ArgParser) readChar() {
 	if ap.readPosition >= len(ap.input) {
@@ -63,7 +59,6 @@ func (ap *ArgParser) peekChar() byte {
 }
 
 // Output separate arguments from single string input
-// TODO: Probably a refactor here with just having 'Qouting' and then 'Escaped' states instead of single doulbe
 func (ap *ArgParser) Parse() {
 	for ap.state != stopped {
 
@@ -199,6 +194,7 @@ type OutputConfig struct {
 
 // Returns OutputConfig for command outputs, Stdout and Stderr cannot be closed! This needs to be done by caller
 func (ap *ArgParser) GetOutputConfig() (o OutputConfig, err error) {
+
 	// We default to os.Stdout and os.Stderr
 	stdout := os.Stdout
 	stderr := os.Stderr
