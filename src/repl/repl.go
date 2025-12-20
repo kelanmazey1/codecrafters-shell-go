@@ -8,6 +8,7 @@ import (
 	"os/exec"
 
 	"github.com/codecrafters-io/shell-starter-go/src/argparse"
+	"github.com/codecrafters-io/shell-starter-go/src/autocomplete"
 	"github.com/codecrafters-io/shell-starter-go/src/commands"
 	"golang.org/x/term"
 )
@@ -30,6 +31,8 @@ func NewRepl(t *term.Terminal) *Repl {
 
 // Starts infinite loop, resets buffers on each iteration. Enters raw mode to take input and exits to execute commands
 func (r Repl) Start() {
+	autocomplete.Testing()
+
 	for {
 		// Reset buffers from last iteration
 		r.outBuff.Reset()

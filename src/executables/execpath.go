@@ -10,6 +10,7 @@ import (
 )
 
 // Returns all names of files in $PATH
+// TODO: this probably wants redoing no need to walk the fileTree twice
 func Names() ([]string, error) {
 	var commands []string
 	dirs := strings.Split(os.Getenv("PATH"), string(os.PathListSeparator))
