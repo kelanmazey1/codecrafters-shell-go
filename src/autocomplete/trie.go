@@ -81,16 +81,13 @@ func (t *Trie) SearchPrefix(pr []byte) *TrieNode {
 
 // Gets all words that start with pr in t, if pr is a complete word it is not returned
 func (t *Trie) GetWordsForPrefix(pr []byte, node *TrieNode, words [][]byte) [][]byte {
-	current := node
-	// fmt.Println("Current: ", string(current.value), " end of word", current.isEndOfWord)
-
 	// Add word to output if marked as end
 	if node.isEndOfWord {
 		words = append(words, pr)
 	}
 
 	// Recurse through branches of subtree from initial pr. Words slice is returned back up with results from each branch
-	for _, c := range current.children {
+	for _, c := range node.children {
 		if c != nil {
 			words = t.GetWordsForPrefix(append(pr, c.value), c, words)
 		}

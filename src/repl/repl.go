@@ -36,24 +36,33 @@ func (r Repl) Start() {
 		panic(err)
 	}
 
-	// fmt.Println(ac.GetWordCount())
-
 	r.t.AutoCompleteCallback = func(line string, pos int, key rune) (newLine string, newPos int, ok bool) {
 		// Only call on <TAB>
 		if key != 9 {
 			return "", 0, false
 		}
 
-		n := ac.SearchPrefix([]byte(line))
-		words := make([][]byte, 0, ac.GetWordCount())
+		bl := []byte(line)
 
-		if n != nil {
-			words = ac.GetWordsForPrefix([]byte(line), n, [][]byte{})
+		n := ac.SearchPrefix(bl)
+
+		if n == nil {
+			return "", 0, false
 		}
 
-		w := words[0] // Will deal with matching prefixes after
+		words := ac.GetWordsForPrefix(bl, n, [][]byte{})
 
-		return string(w) + " ", len(w) + 1, true
+		switch len(words) {
+		case 0:
+			return "", 0, false
+		case 1:
+			w := words[0] // Will deal with matching prefixes after
+			return string(w) + " ", len(w) + 1, true
+		default:
+			w := words[0] // Will deal with matching prefixes after
+			return string(w) + " ", len(w) + 1, true
+		}
+
 	}
 
 	for {
