@@ -27,13 +27,21 @@ func Names() ([]string, error) {
 				return err
 			}
 
+			info, err := os.Stat(path)
+			if err != nil {
+				return fmt.Errorf("error getting fileInfo: %w", err)
+			}
+
 			// We only want files
-			if d.IsDir() {
+			if m := info.Mode(); m.IsDir() || m&0111 == 0 || !m.IsRegular() {
 				return nil
 			}
-			commands = append(commands, d.Name())
+
+			commands = append(commands, info.Name())
 			return nil
+
 		})
+
 		if err != nil {
 			return nil, err
 		}

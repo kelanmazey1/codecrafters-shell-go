@@ -31,7 +31,30 @@ func NewRepl(t *term.Terminal) *Repl {
 
 // Starts infinite loop, resets buffers on each iteration. Enters raw mode to take input and exits to execute commands
 func (r Repl) Start() {
-	autocomplete.Testing()
+	ac, err := autocomplete.NewAutoComplete()
+	if err != nil {
+		panic(err)
+	}
+
+	// fmt.Println(ac.GetWordCount())
+
+	r.t.AutoCompleteCallback = func(line string, pos int, key rune) (newLine string, newPos int, ok bool) {
+		// Only call on <TAB>
+		if key != 9 {
+			return "", 0, false
+		}
+
+		n := ac.SearchPrefix([]byte(line))
+		words := make([][]byte, 0, ac.GetWordCount())
+
+		if n != nil {
+			words = ac.GetWordsForPrefix([]byte(line), n, [][]byte{})
+		}
+
+		w := words[0] // Will deal with matching prefixes after
+
+		return string(w) + " ", len(w) + 1, true
+	}
 
 	for {
 		// Reset buffers from last iteration
@@ -95,7 +118,7 @@ func (r Repl) Start() {
 			}
 
 			if oc.Stderr != os.Stderr {
-				if err := oc.Stdout.Close(); err != nil {
+				if err := oc.Stderr.Close(); err != nil {
 					fmt.Fprint(os.Stderr, err)
 				}
 			}

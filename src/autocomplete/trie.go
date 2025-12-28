@@ -36,7 +36,7 @@ func (t *Trie) Insert(w []byte) {
 
 	// Go through w adding each letter to node
 	for _, letter := range w {
-		i := getCharIndex(letter)
+		i := int(letter)
 
 		if currentNode.children[i] == nil {
 			currentNode.children[i] = newTrieNode(letter)
@@ -52,7 +52,7 @@ func (t *Trie) Search(w []byte) bool {
 	currentNode := t.Root
 
 	for _, letter := range w {
-		index := getCharIndex(letter)
+		index := int(letter)
 		// If letter isn't in children then can't be in trie
 		if currentNode.children[index] == nil {
 			return false
@@ -68,7 +68,7 @@ func (t *Trie) SearchPrefix(pr []byte) *TrieNode {
 	currentNode := t.Root
 
 	for _, letter := range pr {
-		i := getCharIndex(letter)
+		i := int(letter)
 		if currentNode.children[i] == nil {
 			return nil
 		}
@@ -82,22 +82,11 @@ func (t *Trie) SearchPrefix(pr []byte) *TrieNode {
 // Gets all words that start with pr in t, if pr is a complete word it is not returned
 func (t *Trie) GetWordsForPrefix(pr []byte, node *TrieNode, words [][]byte) [][]byte {
 	current := node
+	// fmt.Println("Current: ", string(current.value), " end of word", current.isEndOfWord)
 
 	// Add word to output if marked as end
 	if node.isEndOfWord {
 		words = append(words, pr)
-	}
-
-	// Move to final letter of pr from root initially
-	if current == t.Root {
-		for _, letter := range pr {
-			i := int(letter)
-			if current.children[i] == nil {
-				return nil
-			}
-			current = current.children[i]
-		}
-
 	}
 
 	// Recurse through branches of subtree from initial pr. Words slice is returned back up with results from each branch

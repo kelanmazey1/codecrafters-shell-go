@@ -90,13 +90,11 @@ func (b BuiltIn) Exec(out io.Writer, errors io.Writer) error {
 	h, err := getHandler(b.Type)
 
 	if err != nil {
-		errors.Write([]byte(err.Error()))
 		return err
 	}
 
 	res, err := h(b)
 	if err != nil {
-		errors.Write([]byte(err.Error()))
 		return err
 	}
 
