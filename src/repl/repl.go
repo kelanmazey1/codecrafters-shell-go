@@ -47,6 +47,7 @@ func (r Repl) Start() {
 		n := ac.SearchPrefix(bl)
 
 		if n == nil {
+			fmt.Fprintln(os.Stderr, "\a")
 			return "", 0, false
 		}
 
@@ -54,6 +55,7 @@ func (r Repl) Start() {
 
 		switch len(words) {
 		case 0:
+			fmt.Fprintln(os.Stderr, "\a")
 			return "", 0, false
 		case 1:
 			w := words[0] // Will deal with matching prefixes after
