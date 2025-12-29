@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
+	"strings"
 
 	"github.com/codecrafters-io/shell-starter-go/src/argparse"
 	"github.com/codecrafters-io/shell-starter-go/src/autocomplete"
@@ -13,12 +15,28 @@ import (
 	"golang.org/x/term"
 )
 
+type termHistory struct {
+	commands []string
+}
+
+func (t termHistory) Add(entry string) {
+	t.commands = append(t.commands, entry)
+}
+func (t termHistory) Len() int {
+	return len(t.commands)
+}
+func (t termHistory) At(idx int) string {
+	return t.commands[idx]
+}
+
 // Uses os.Stdin for input loops and parsers input to buffers, manages terminal going in and out of raw mode.
 type Repl struct {
 	t *term.Terminal
 
 	outBuff *bytes.Buffer // Buffer to store stdout from command execution
 	errBuff *bytes.Buffer // Buffer to store stderr from command execution
+
+	showMultipleCommands bool // flag if to show multiple commands
 }
 
 func NewRepl(t *term.Terminal) *Repl {
@@ -26,11 +44,19 @@ func NewRepl(t *term.Terminal) *Repl {
 	outBuff := &bytes.Buffer{}
 	errBuff := &bytes.Buffer{}
 
+	var th termHistory
+	th.commands = make([]string, 10000) // Just chose 10000 for default bash history size
+	t.History = th
+
 	return &Repl{t: t, outBuff: outBuff, errBuff: errBuff}
 }
 
+func (r *Repl) ringBell() {
+	fmt.Fprint(os.Stderr, "\a")
+}
+
 // Starts infinite loop, resets buffers on each iteration. Enters raw mode to take input and exits to execute commands
-func (r Repl) Start() {
+func (r *Repl) Start() {
 	ac, err := autocomplete.NewAutoComplete()
 	if err != nil {
 		panic(err)
@@ -47,24 +73,58 @@ func (r Repl) Start() {
 		n := ac.SearchPrefix(bl)
 
 		if n == nil {
-			fmt.Fprintln(os.Stderr, "\a")
+			r.ringBell()
 			return "", 0, false
 		}
 
 		words := ac.GetWordsForPrefix(bl, n, [][]byte{})
 
-		switch len(words) {
-		case 0:
-			fmt.Fprintln(os.Stderr, "\a")
+		if len(words) == 0 { // May be no other words that extend prefix
+			r.ringBell()
 			return "", 0, false
-		case 1:
-			w := words[0] // Will deal with matching prefixes after
-			return string(w) + " ", len(w) + 1, true
-		default:
-			w := words[0] // Will deal with matching prefixes after
+
+		}
+
+		if len(words) == 1 {
+			w := words[0]
 			return string(w) + " ", len(w) + 1, true
 		}
 
+		if len(words) > 1 {
+			var out bytes.Buffer
+
+			if r.showMultipleCommands {
+
+				slices.SortFunc(words, func(a, b []byte) int {
+					return strings.Compare(strings.ToLower(string(a)), strings.ToLower(string(b)))
+				})
+
+				out.Write([]byte("$ " + line + "\n"))
+
+				sep := []byte("  ")
+
+				for i, w := range words {
+					if i == 0 {
+						out.Write(w)
+					} else {
+						out.Write(sep)
+						out.Write(w)
+					}
+				}
+
+				out.Write([]byte("\n"))
+				r.t.Write(out.Bytes())
+				r.showMultipleCommands = false
+
+				return "", 0, false
+			} else {
+				r.ringBell()
+				r.showMultipleCommands = true
+				return "", 0, false
+			}
+		}
+
+		return "", 0, false
 	}
 
 	for {

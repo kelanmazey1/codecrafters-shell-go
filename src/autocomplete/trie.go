@@ -83,7 +83,9 @@ func (t *Trie) SearchPrefix(pr []byte) *TrieNode {
 func (t *Trie) GetWordsForPrefix(pr []byte, node *TrieNode, words [][]byte) [][]byte {
 	// Add word to output if marked as end
 	if node.isEndOfWord {
-		words = append(words, pr)
+		word := make([]byte, len(pr))
+		copy(word, pr)
+		words = append(words, word)
 	}
 
 	// Recurse through branches of subtree from initial pr. Words slice is returned back up with results from each branch

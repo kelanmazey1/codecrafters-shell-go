@@ -59,6 +59,7 @@ func (e Executable) Exec(out io.Writer, errors io.Writer) error {
 	if err := cmd.Run(); err != nil {
 		return err
 	}
+
 	return nil
 
 }

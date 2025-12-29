@@ -106,7 +106,7 @@ type handlerFunc func(BuiltIn) (string, error)
 
 func handleEcho(b BuiltIn) (string, error) {
 	outString := strings.Join(b.GetStringArgs(), " ")
-	return outString, nil
+	return outString + "\n", nil
 }
 
 func handleExit(b BuiltIn) (string, error) {
