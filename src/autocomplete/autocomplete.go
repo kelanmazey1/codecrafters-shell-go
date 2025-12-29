@@ -20,7 +20,9 @@ func NewAutoComplete() (Autocomplete, error) {
 		t.Insert([]byte(b))
 		wordCount++
 	}
-	execs, err := executables.Names()
+
+	p := executables.NewPathVar()
+	execs, err := p.Names()
 	if err != nil {
 		return Autocomplete{}, err
 	}

@@ -9,13 +9,22 @@ import (
 	"strings"
 )
 
+type PathVar struct {
+	dirs []string
+}
+
+func NewPathVar() PathVar {
+	return PathVar{
+		strings.Split(os.Getenv("PATH"), string(os.PathListSeparator)),
+	}
+}
+
 // Returns all names of files in $PATH
 // TODO: this probably wants redoing no need to walk the fileTree twice
-func Names() ([]string, error) {
+func (p PathVar) Names() ([]string, error) {
 	var commands []string
-	dirs := strings.Split(os.Getenv("PATH"), string(os.PathListSeparator))
 
-	for _, dir := range dirs {
+	for _, dir := range p.dirs {
 		err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 
 			// If directory doesn't exist then continue
@@ -55,11 +64,9 @@ func Names() ([]string, error) {
 }
 
 // Given a command name returns the executable path
-func LocateExecutablePath(c string) (string, error) {
+func (p PathVar) LocateCommandPath(c string) (string, error) {
 	var commandPath string
-	dirs := strings.Split(os.Getenv("PATH"), string(os.PathListSeparator))
-
-	for _, dir := range dirs {
+	for _, dir := range p.dirs {
 		err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 
 			// If directory doesn't exist then continue

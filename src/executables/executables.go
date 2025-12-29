@@ -23,7 +23,8 @@ func NewExecutable(inputSplit []argparse.Token) (Executable, error) {
 		e.Args = inputSplit[1:]
 	}
 
-	ep, err := LocateExecutablePath(e.Literal)
+	p := NewPathVar()
+	ep, err := p.LocateCommandPath(e.Literal)
 
 	if err != nil {
 		return Executable{}, err
