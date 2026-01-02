@@ -15,6 +15,7 @@ func NewTrie(r byte) *Trie {
 
 type TrieNode struct {
 	children    [256]*TrieNode // Cover all chars that can be represented by 1 byte
+	childCount  int            // As all TrieNodes are initially set to nil this lets us know without having to iterate. Is set on insertion
 	isEndOfWord bool           // If the node marks the end of a complete word
 	value       byte           // The byte of the letter
 }
@@ -40,6 +41,7 @@ func (t *Trie) Insert(w []byte) {
 
 		if currentNode.children[i] == nil {
 			currentNode.children[i] = newTrieNode(letter)
+			currentNode.childCount++
 		}
 
 		currentNode = currentNode.children[i] // Move Trie to new node
@@ -72,10 +74,8 @@ func (t *Trie) SearchPrefix(pr []byte) *TrieNode {
 		if currentNode.children[i] == nil {
 			return nil
 		}
-
 		currentNode = currentNode.children[i]
 	}
-
 	return currentNode
 }
 
@@ -95,4 +95,25 @@ func (t *Trie) GetWordsForPrefix(pr []byte, node *TrieNode, words [][]byte) [][]
 		}
 	}
 	return words
+}
+
+// Return word and node until word ends or diverges
+func EndOfCommonPrefix(pr []byte, node *TrieNode) ([]byte, *TrieNode) {
+	if node.GetNumberOfChildren() == 1 && !node.isEndOfWord {
+		for _, c := range node.children {
+			if c != nil {
+				pr, node = EndOfCommonPrefix(append(pr, c.value), c)
+			}
+		}
+	}
+
+	return pr, node
+}
+
+func (tn TrieNode) GetNumberOfChildren() int {
+	return tn.childCount
+}
+
+func (tn TrieNode) IsLeaf() bool {
+	return tn.childCount == 0 && tn.isEndOfWord
 }

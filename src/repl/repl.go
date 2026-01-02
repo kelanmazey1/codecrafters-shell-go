@@ -35,70 +35,41 @@ type Repl struct {
 
 	outBuff *bytes.Buffer // Buffer to store stdout from command execution
 	errBuff *bytes.Buffer // Buffer to store stderr from command execution
-
-	showMultipleCommands bool // flag if to show multiple commands
 }
 
-func NewRepl(t *term.Terminal) *Repl {
-	// No need for buffers or stream pointers to be external
-	outBuff := &bytes.Buffer{}
-	errBuff := &bytes.Buffer{}
+func NewRepl(t *term.Terminal, ac *autocomplete.Autocomplete) *Repl {
 
 	var th termHistory
 	th.commands = make([]string, 10000) // Just chose 10000 for default bash history size
 	t.History = th
 
-	return &Repl{t: t, outBuff: outBuff, errBuff: errBuff}
-}
-
-func (r *Repl) ringBell() {
-	fmt.Fprint(os.Stderr, "\a")
-}
-
-// Starts infinite loop, resets buffers on each iteration. Enters raw mode to take input and exits to execute commands
-func (r *Repl) Start() {
-	ac, err := autocomplete.NewAutoComplete()
-	if err != nil {
-		panic(err)
-	}
-
-	r.t.AutoCompleteCallback = func(line string, pos int, key rune) (newLine string, newPos int, ok bool) {
+	t.AutoCompleteCallback = func(line string, pos int, key rune) (newLine string, newPos int, ok bool) {
 		// Only call on <TAB>
 		if key != 9 {
 			return "", 0, false
 		}
+
+		// Not supporting executables with spaces, cause that's annoying
+		line = strings.TrimSpace(line)
 
 		bl := []byte(line)
 
 		n := ac.SearchPrefix(bl)
 
 		if n == nil {
-			r.ringBell()
+			ringBell()
 			return "", 0, false
 		}
+		var out bytes.Buffer
 
-		words := ac.GetWordsForPrefix(bl, n, [][]byte{})
+		if n.GetNumberOfChildren() > 1 {
+			words := ac.GetWordsForPrefix(bl, n, [][]byte{})
 
-		if len(words) == 0 { // May be no other words that extend prefix
-			r.ringBell()
-			return "", 0, false
+			slices.SortFunc(words, func(a, b []byte) int {
+				return strings.Compare(strings.ToLower(string(a)), strings.ToLower(string(b)))
+			})
 
-		}
-
-		if len(words) == 1 {
-			w := words[0]
-			return string(w) + " ", len(w) + 1, true
-		}
-
-		if len(words) > 1 {
-			var out bytes.Buffer
-
-			if r.showMultipleCommands {
-
-				slices.SortFunc(words, func(a, b []byte) int {
-					return strings.Compare(strings.ToLower(string(a)), strings.ToLower(string(b)))
-				})
-
+			if ac.ShowMultipleCommands {
 				out.Write([]byte("$ " + line + "\n"))
 
 				sep := []byte("  ")
@@ -107,25 +78,48 @@ func (r *Repl) Start() {
 					if i == 0 {
 						out.Write(w)
 					} else {
-						out.Write(sep)
-						out.Write(w)
+						out.Write(append(sep, w...))
 					}
 				}
 
 				out.Write([]byte("\n"))
-				r.t.Write(out.Bytes())
-				r.showMultipleCommands = false
+				t.Write(out.Bytes())
+				ac.ShowMultipleCommands = false
 
 				return "", 0, false
 			} else {
-				r.ringBell()
-				r.showMultipleCommands = true
+				ringBell()
+				ac.ShowMultipleCommands = true
 				return "", 0, false
 			}
 		}
 
-		return "", 0, false
+		// Commmon prefix either is command or longest common prefix of 2 or more commmands
+		// These are either used or handled on the next input from the user
+		word, wordNode := autocomplete.EndOfCommonPrefix(bl, n)
+		out.Write(word)
+
+		// no words left, add space after
+		if wordNode.IsLeaf() {
+			return out.String() + " ", len(word) + 1, true
+		}
+
+		return out.String(), len(word), true
 	}
+
+	// No need for buffers or stream pointers to be external
+	outBuff := &bytes.Buffer{}
+	errBuff := &bytes.Buffer{}
+
+	return &Repl{t: t, outBuff: outBuff, errBuff: errBuff}
+}
+
+func ringBell() {
+	fmt.Fprint(os.Stderr, "\a")
+}
+
+// Starts infinite loop, resets buffers on each iteration. Enters raw mode to take input and exits to execute commands
+func (r *Repl) Start() {
 
 	for {
 		// Reset buffers from last iteration

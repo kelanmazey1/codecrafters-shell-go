@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 
+	"github.com/codecrafters-io/shell-starter-go/src/autocomplete"
 	"github.com/codecrafters-io/shell-starter-go/src/repl"
 	"golang.org/x/term"
 )
@@ -10,7 +11,12 @@ import (
 func main() {
 	tm := term.NewTerminal(os.Stdin, "$ ")
 
-	r := repl.NewRepl(tm)
+	ac, err := autocomplete.NewAutoComplete()
+	if err != nil {
+		panic(err)
+	}
+
+	r := repl.NewRepl(tm, ac)
 
 	r.Start()
 }
